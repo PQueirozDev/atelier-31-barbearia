@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { ArrowUpRight, CalendarDays, Check, ChevronDown, Clock3, Instagram, MapPin, Menu, Scissors, Star, UserRound, X } from 'lucide-react'
+import { ArrowUpRight, Check, Clock3, Instagram, MapPin, Menu, Scissors, UserRound, X } from 'lucide-react'
 import './styles.css'
 import { supabase } from './lib/supabase'
 
@@ -93,7 +93,6 @@ function App() {
           <a href="#barbeiros" onClick={() => setMobileOpen(false)}>Barbeiros</a>
           <a href="#contato" onClick={() => setMobileOpen(false)}>Onde estamos</a>
         </nav>
-        <div className="header-actions"><button className="account-link account-button" onClick={() => openBooking()}><CalendarDays size={16} /> Meu horário</button><button className="header-cta" onClick={() => openBooking()}>Agendar <ArrowUpRight size={16} /></button></div>
           <div className="header-actions"><button className="account-link account-button" onClick={() => setStaffOpen(true)}><UserRound size={16} /> Área da equipe</button><button className="header-cta" onClick={() => openBooking()}>Agendar <ArrowUpRight size={16} /></button></div>
         <button className="menu-toggle" aria-label="Abrir menu" onClick={() => setMobileOpen(!mobileOpen)}>{mobileOpen ? <X /> : <Menu />}</button>
       </header>
