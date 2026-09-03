@@ -15,7 +15,7 @@ const services: Service[] = [
 ]
 
 const barbers = [
-  { name: 'Caio Martins', role: 'Especialista em tesoura', image: 'https://images.unsplash.com/photo-1582296967860-9f7d1a9d1f0f?auto=format&fit=crop&w=900&q=85' },
+  { name: 'Caio Martins', role: 'Especialista em tesoura', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=900&q=85' },
   { name: 'Rafael Nunes', role: 'Barbas e visagismo', image: 'https://images.unsplash.com/photo-1531384441138-2736e62e0919?auto=format&fit=crop&w=900&q=85' },
   { name: 'Léo Sampaio', role: 'Cortes contemporâneos', image: 'https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&w=900&q=85' },
 ]
@@ -118,7 +118,7 @@ function App() {
       </main>
 
       <footer className="site-footer"><a className="brand" href="#inicio"><span>ATELIER</span><b>31</b></a><p>Precisão, presença e personalidade.</p><span>© 2024 Atelier 31</span></footer>
-      <a className="whatsapp" href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Gostaria%20de%20saber%20mais%20sobre%20os%20servi%C3%A7os." target="_blank" rel="noreferrer" aria-label="Falar no WhatsApp">WA</a>
+      <a className="whatsapp" href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Gostaria%20de%20saber%20mais%20sobre%20os%20servi%C3%A7os." target="_blank" rel="noreferrer" aria-label="Falar no WhatsApp"><img src="https://cdn.simpleicons.org/whatsapp/fff8ed" alt="" /></a>
 
   {staffOpen && <div className="modal-backdrop" onClick={() => setStaffOpen(false)}><div className="booking-modal" onClick={event => event.stopPropagation()}><button className="modal-close" onClick={() => setStaffOpen(false)}><X size={19} /></button><div className="section-kicker">Acesso restrito</div><h2>Área da<br /><em>equipe.</em></h2><p className="account-copy">Entre para acompanhar os clientes e os horários reservados.</p><form onSubmit={submitStaffLogin}><label>E-mail profissional<input name="email" type="email" placeholder="equipe@atelier31.com" required /></label><label>Senha<input name="password" type="password" placeholder="Sua senha" required /></label>{staffError && <p className="form-error">{staffError}</p>}<button className="button button-gold full-button" type="submit" disabled={staffLoading}>{staffLoading ? 'Entrando...' : 'Entrar na área da equipe'} <ArrowUpRight size={18} /></button></form></div></div>}
 
