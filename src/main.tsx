@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ArrowUpRight, CalendarDays, Check, ChevronDown, Clock3, Instagram, MapPin, Menu, Scissors, Star, UserRound, X } from 'lucide-react'
 import './styles.css'
+import { supabase } from './lib/supabase'
 
 type Service = { name: string; description: string; price: string; duration: string; tone: string }
 
@@ -23,8 +24,39 @@ function App() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [selectedService, setSelectedService] = useState('Corte clássico')
   const [submitted, setSubmitted] = useState(false)
+  const [bookingError, setBookingError] = useState('')
+  const [bookingLoading, setBookingLoading] = useState(false)
 
-  const openBooking = (service = selectedService) => { setSelectedService(service); setSubmitted(false); setBookingOpen(true) }
+  const openBooking = (service = selectedService) => { setSelectedService(service); setSubmitted(false); setBookingError(''); setBookingOpen(true) }
+
+  const submitBooking = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setBookingError('')
+    if (!supabase) { setBookingError('A conexão com o Supabase ainda não está disponível neste deploy.'); return }
+    const form = new FormData(event.currentTarget)
+    const email = String(form.get('email') || '')
+    const password = String(form.get('password') || '')
+    const nome = String(form.get('nome') || '')
+    const data = String(form.get('data') || '')
+    const horario = String(form.get('horario') || '')
+    if (!email || password.length < 6 || !nome || !data || !horario) { setBookingError('Preencha todos os campos. A senha deve ter pelo menos 6 caracteres.'); return }
+    setBookingLoading(true)
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({ email, password, options: { data: { nome } } })
+    let user = authData.user
+    if (signUpError && signUpError.message.toLowerCase().includes('already registered')) {
+      const result = await supabase.auth.signInWithPassword({ email, password })
+      user = result.data.user
+      if (result.error) { setBookingError('Este e-mail já existe. Confira a senha e tente novamente.'); setBookingLoading(false); return }
+    } else if (signUpError) { setBookingError(signUpError.message); setBookingLoading(false); return }
+    if (!user || !authData.session) { setBookingError('Conta criada. Confirme o e-mail recebido e faça a reserva novamente.'); setBookingLoading(false); return }
+    const { data: barber } = await supabase.from('barbers').select('id').eq('ativo', true).limit(1).single()
+    const { data: service } = await supabase.from('services').select('id').eq('nome', selectedService).eq('ativo', true).single()
+    if (!barber || !service) { setBookingError('Cadastre os serviços e barbeiros iniciais no Supabase antes de agendar.'); setBookingLoading(false); return }
+    const { error } = await supabase.from('appointments').insert({ cliente_id: user.id, barbeiro_id: barber.id, servico_id: service.id, data, horario, status: 'pendente' })
+    setBookingLoading(false)
+    if (error) { setBookingError(error.code === '23505' ? 'Esse horário já foi reservado. Escolha outro.' : error.message); return }
+    setSubmitted(true)
+  }
 
   return (
     <div className="app-shell">
@@ -63,7 +95,7 @@ function App() {
       <footer className="site-footer"><a className="brand" href="#inicio"><span>ATELIER</span><b>31</b></a><p>Precisão, presença e personalidade.</p><span>© 2024 Atelier 31</span></footer>
       <a className="whatsapp" href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Gostaria%20de%20saber%20mais%20sobre%20os%20servi%C3%A7os." target="_blank" rel="noreferrer" aria-label="Falar no WhatsApp">WA</a>
 
-      {bookingOpen && <div className="modal-backdrop" onClick={() => setBookingOpen(false)}><div className="booking-modal" onClick={event => event.stopPropagation()}><button className="modal-close" onClick={() => setBookingOpen(false)}><X size={19} /></button>{submitted ? <div className="success-state"><div className="success-icon"><Check /></div><div className="section-kicker">Tudo certo</div><h2>Seu horário está<br /><em>quase garantido.</em></h2><p>Recebemos seu pedido para <strong>{selectedService}</strong>. Nossa equipe confirma pelo WhatsApp em alguns minutos.</p><button className="button button-dark" onClick={() => setBookingOpen(false)}>Voltar para o site</button></div> : <><div className="section-kicker">Agendamento online</div><h2>Reserve seu<br /><em>momento.</em></h2><div className="step-row"><span className="active">01 Serviço</span><span>02 Data e hora</span><span>03 Seus dados</span></div><label>Escolha o serviço<select value={selectedService} onChange={event => setSelectedService(event.target.value)}>{services.map(service => <option key={service.name}>{service.name}</option>)}</select></label><div className="form-row"><label>Data<input type="date" /></label><label>Horário<select><option>10:00</option><option>11:30</option><option>14:00</option><option>16:30</option></select></label></div><label>Seu nome<input placeholder="Como podemos te chamar?" /></label><label>WhatsApp<input placeholder="(11) 99999-9999" /></label><button className="button button-gold full-button" onClick={() => setSubmitted(true)}>Continuar agendamento <ArrowUpRight size={18} /></button><small className="modal-note">Sem pagamento agora · confirmação pelo WhatsApp</small></>}</div></div>}
+      {bookingOpen && <div className="modal-backdrop" onClick={() => setBookingOpen(false)}><div className="booking-modal" onClick={event => event.stopPropagation()}><button className="modal-close" onClick={() => setBookingOpen(false)}><X size={19} /></button>{submitted ? <div className="success-state"><div className="success-icon"><Check /></div><div className="section-kicker">Tudo certo</div><h2>Seu horário está<br /><em>confirmado.</em></h2><p>Seu pedido para <strong>{selectedService}</strong> foi salvo. Nossa equipe confirma pelo WhatsApp.</p><button className="button button-dark" onClick={() => setBookingOpen(false)}>Voltar para o site</button></div> : <form onSubmit={submitBooking}><div className="section-kicker">Agendamento online</div><h2>Reserve seu<br /><em>momento.</em></h2><div className="step-row"><span className="active">01 Serviço</span><span>02 Data e hora</span><span>03 Seus dados</span></div><label>Escolha o serviço<select name="service" value={selectedService} onChange={event => setSelectedService(event.target.value)}>{services.map(service => <option key={service.name}>{service.name}</option>)}</select></label><div className="form-row"><label>Data<input name="data" type="date" required /></label><label>Horário<select name="horario" defaultValue="10:00"><option>10:00</option><option>11:30</option><option>14:00</option><option>16:30</option></select></label></div><label>Seu nome<input name="nome" placeholder="Como podemos te chamar?" required /></label><label>E-mail<input name="email" type="email" placeholder="voce@email.com" required /></label><label>Senha<input name="password" type="password" placeholder="Mínimo de 6 caracteres" required /></label>{bookingError && <p className="form-error">{bookingError}</p>}<button className="button button-gold full-button" type="submit" disabled={bookingLoading}>{bookingLoading ? 'Salvando...' : 'Confirmar agendamento'} <ArrowUpRight size={18} /></button><small className="modal-note">Sua conta é criada automaticamente · sem pagamento agora</small></form>}</div></div>}
     </div>
   )
 }

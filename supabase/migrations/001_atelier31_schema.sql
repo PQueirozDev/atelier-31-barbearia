@@ -69,3 +69,14 @@ begin
 end;
 $$;
 create trigger on_auth_user_created after insert on auth.users for each row execute procedure public.handle_new_user();
+
+insert into public.services (nome, descricao, preco, duracao) values
+  ('Corte clássico', 'Tesoura e máquina, acabamento preciso e finalização.', 75, 45),
+  ('Corte + barba', 'O ritual completo para sair renovado da cadeira.', 125, 75),
+  ('Barba premium', 'Toalha quente, desenho e produtos de alta performance.', 65, 35),
+  ('Combo Atelier', 'Corte, barba e tratamento facial em uma experiência só.', 165, 100);
+
+insert into public.barbers (nome, descricao, especialidade) values
+  ('Caio Martins', 'Precisão e leitura de estilo em cada atendimento.', 'Especialista em tesoura'),
+  ('Rafael Nunes', 'Barbas desenhadas para valorizar cada rosto.', 'Barbas e visagismo'),
+  ('Léo Sampaio', 'Cortes atuais com acabamento limpo e autoral.', 'Cortes contemporâneos');
