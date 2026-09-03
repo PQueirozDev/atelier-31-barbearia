@@ -51,7 +51,7 @@ function App() {
     const { data, error } = await supabase.auth.signInWithPassword({ email: String(form.get('email')), password: String(form.get('password')) })
     if (error || !data.user) {
       const message = error?.message.toLowerCase() || ''
-      setStaffError(message.includes('email not confirmed') ? 'Confirme o e-mail do funcionário no Supabase antes de entrar.' : 'Não foi possível entrar. Use o e-mail e a senha criados em Authentication → Users.')
+      setStaffError(message.includes('email not confirmed') ? 'Confirme o e-mail do funcionário no Supabase antes de entrar.' : message.includes('invalid api key') || message.includes('fetch') ? 'A conexão com o Supabase está inválida. Confira as variáveis no Vercel.' : 'Não foi possível entrar. Use o e-mail e a senha criados em Authentication → Users.')
       setStaffLoading(false)
       return
     }
@@ -74,9 +74,9 @@ function App() {
     const horario = String(form.get('horario') || '')
     if (!nome || !telefone || !data || !horario) { setBookingError('Preencha todos os campos para confirmar seu horário.'); return }
     setBookingLoading(true)
-    const { data: barber } = await supabase.from('barbers').select('id').eq('ativo', true).limit(1).single()
-    const { data: service } = await supabase.from('services').select('id').eq('nome', selectedService).eq('ativo', true).single()
-    if (!barber || !service) { setBookingError('Cadastre os serviços e barbeiros iniciais no Supabase antes de agendar.'); setBookingLoading(false); return }
+    const { data: barber, error: barberError } = await supabase.from('barbers').select('id').eq('ativo', true).limit(1).single()
+    const { data: service, error: serviceError } = await supabase.from('services').select('id').eq('nome', selectedService).eq('ativo', true).single()
+    if (barberError || serviceError || !barber || !service) { setBookingError(`Erro ao carregar opções: ${barberError?.message || serviceError?.message || 'nenhum serviço ou barbeiro ativo encontrado'}`); setBookingLoading(false); return }
     const { error } = await supabase.rpc('create_guest_appointment', { p_nome: nome, p_telefone: telefone, p_barbeiro_id: barber.id, p_servico_id: service.id, p_data: data, p_horario: horario })
     setBookingLoading(false)
     if (error) { setBookingError(error.code === '23505' ? 'Esse horário já foi reservado. Escolha outro.' : error.message); return }
