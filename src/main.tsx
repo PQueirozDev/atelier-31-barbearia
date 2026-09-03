@@ -21,7 +21,6 @@ const barbers = [
 
 function App() {
   const [bookingOpen, setBookingOpen] = useState(false)
-  const [accountOpen, setAccountOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [selectedService, setSelectedService] = useState('Corte clássico')
   const [submitted, setSubmitted] = useState(false)
@@ -35,21 +34,16 @@ function App() {
     setBookingError('')
     if (!supabase) { setBookingError('A conexão com o Supabase ainda não está disponível neste deploy.'); return }
     const form = new FormData(event.currentTarget)
-    const email = String(form.get('email') || '')
-    const password = String(form.get('password') || '')
     const nome = String(form.get('nome') || '')
+    const telefone = String(form.get('telefone') || '')
     const data = String(form.get('data') || '')
     const horario = String(form.get('horario') || '')
-    if (!email || password.length < 6 || !nome || !data || !horario) { setBookingError('Preencha todos os campos. A senha deve ter pelo menos 6 caracteres.'); return }
+    if (!nome || !telefone || !data || !horario) { setBookingError('Preencha todos os campos para confirmar seu horário.'); return }
     setBookingLoading(true)
-    const { data: authData, error: signUpError } = await supabase.auth.signUp({ email, password, options: { data: { nome } } })
-    let user = authData.user
-    if (signUpError && signUpError.message.toLowerCase().includes('already registered')) {
-      const result = await supabase.auth.signInWithPassword({ email, password })
-      user = result.data.user
-      if (result.error) { setBookingError('Este e-mail já existe. Confira a senha e tente novamente.'); setBookingLoading(false); return }
-    } else if (signUpError) { setBookingError(signUpError.message); setBookingLoading(false); return }
-    if (!user || !authData.session) { setBookingError('Conta criada. Confirme o e-mail recebido e faça a reserva novamente.'); setBookingLoading(false); return }
+    const { data: authData, error: authError } = await supabase.auth.signInAnonymously()
+    if (authError || !authData.user) { setBookingError('Ative o login anônimo em Supabase → Authentication → Providers → Anonymous.'); setBookingLoading(false); return }
+    const user = authData.user
+    await supabase.from('profiles').upsert({ id: user.id, nome, telefone, email: `anonimo-${user.id}@atelier31.local` })
     const { data: barber } = await supabase.from('barbers').select('id').eq('ativo', true).limit(1).single()
     const { data: service } = await supabase.from('services').select('id').eq('nome', selectedService).eq('ativo', true).single()
     if (!barber || !service) { setBookingError('Cadastre os serviços e barbeiros iniciais no Supabase antes de agendar.'); setBookingLoading(false); return }
@@ -69,7 +63,7 @@ function App() {
           <a href="#barbeiros" onClick={() => setMobileOpen(false)}>Barbeiros</a>
           <a href="#contato" onClick={() => setMobileOpen(false)}>Onde estamos</a>
         </nav>
-        <div className="header-actions"><button className="account-link account-button" onClick={() => setAccountOpen(true)}><UserRound size={16} /> Minha conta</button><button className="header-cta" onClick={() => openBooking()}>Agendar <ArrowUpRight size={16} /></button></div>
+        <div className="header-actions"><button className="account-link account-button" onClick={() => openBooking()}><CalendarDays size={16} /> Meu horário</button><button className="header-cta" onClick={() => openBooking()}>Agendar <ArrowUpRight size={16} /></button></div>
         <button className="menu-toggle" aria-label="Abrir menu" onClick={() => setMobileOpen(!mobileOpen)}>{mobileOpen ? <X /> : <Menu />}</button>
       </header>
 
@@ -96,9 +90,8 @@ function App() {
       <footer className="site-footer"><a className="brand" href="#inicio"><span>ATELIER</span><b>31</b></a><p>Precisão, presença e personalidade.</p><span>© 2024 Atelier 31</span></footer>
       <a className="whatsapp" href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Gostaria%20de%20saber%20mais%20sobre%20os%20servi%C3%A7os." target="_blank" rel="noreferrer" aria-label="Falar no WhatsApp">WA</a>
 
-      {accountOpen && <div className="modal-backdrop" onClick={() => setAccountOpen(false)}><div className="booking-modal account-modal" onClick={event => event.stopPropagation()}><button className="modal-close" onClick={() => setAccountOpen(false)}><X size={19} /></button><div className="section-kicker">Área do cliente</div><h2>Entre no seu<br /><em>Atelier.</em></h2><p className="account-copy">Faça seu login para consultar próximos horários e histórico de agendamentos.</p><label>E-mail<input type="email" placeholder="voce@email.com" /></label><label>Senha<input type="password" placeholder="Sua senha" /></label><button className="button button-gold full-button" onClick={() => { setAccountOpen(false); openBooking() }}>Agendar um horário <ArrowUpRight size={18} /></button></div></div>}
-
       {bookingOpen && <div className="modal-backdrop" onClick={() => setBookingOpen(false)}><div className="booking-modal" onClick={event => event.stopPropagation()}><button className="modal-close" onClick={() => setBookingOpen(false)}><X size={19} /></button>{submitted ? <div className="success-state"><div className="success-icon"><Check /></div><div className="section-kicker">Tudo certo</div><h2>Seu horário está<br /><em>confirmado.</em></h2><p>Seu pedido para <strong>{selectedService}</strong> foi salvo. Nossa equipe confirma pelo WhatsApp.</p><button className="button button-dark" onClick={() => setBookingOpen(false)}>Voltar para o site</button></div> : <form onSubmit={submitBooking}><div className="section-kicker">Agendamento online</div><h2>Reserve seu<br /><em>momento.</em></h2><div className="step-row"><span className="active">01 Serviço</span><span>02 Data e hora</span><span>03 Seus dados</span></div><label>Escolha o serviço<select name="service" value={selectedService} onChange={event => setSelectedService(event.target.value)}>{services.map(service => <option key={service.name}>{service.name}</option>)}</select></label><div className="form-row"><label>Data<input name="data" type="date" required /></label><label>Horário<select name="horario" defaultValue="10:00"><option>10:00</option><option>11:30</option><option>14:00</option><option>16:30</option></select></label></div><label>Seu nome<input name="nome" placeholder="Como podemos te chamar?" required /></label><label>E-mail<input name="email" type="email" placeholder="voce@email.com" required /></label><label>Senha<input name="password" type="password" placeholder="Mínimo de 6 caracteres" required /></label>{bookingError && <p className="form-error">{bookingError}</p>}<button className="button button-gold full-button" type="submit" disabled={bookingLoading}>{bookingLoading ? 'Salvando...' : 'Confirmar agendamento'} <ArrowUpRight size={18} /></button><small className="modal-note">Sua conta é criada automaticamente · sem pagamento agora</small></form>}</div></div>}
+      {bookingOpen && <div className="modal-backdrop" onClick={() => setBookingOpen(false)}><div className="booking-modal" onClick={event => event.stopPropagation()}><button className="modal-close" onClick={() => setBookingOpen(false)}><X size={19} /></button>{submitted ? <div className="success-state"><div className="success-icon"><Check /></div><div className="section-kicker">Tudo certo</div><h2>Seu horário está<br /><em>confirmado.</em></h2><p>Seu pedido para <strong>{selectedService}</strong> foi salvo. Nossa equipe confirma pelo WhatsApp.</p><button className="button button-dark" onClick={() => setBookingOpen(false)}>Voltar para o site</button></div> : <form onSubmit={submitBooking}><div className="section-kicker">Agendamento online</div><h2>Reserve seu<br /><em>momento.</em></h2><div className="step-row"><span className="active">01 Serviço</span><span>02 Data e hora</span><span>03 Seus dados</span></div><label>Escolha o serviço<select name="service" value={selectedService} onChange={event => setSelectedService(event.target.value)}>{services.map(service => <option key={service.name}>{service.name}</option>)}</select></label><div className="form-row"><label>Data<input name="data" type="date" required /></label><label>Horário<select name="horario" defaultValue="10:00"><option>10:00</option><option>11:30</option><option>14:00</option><option>16:30</option></select></label></div><label>Seu nome<input name="nome" placeholder="Como podemos te chamar?" required /></label><label>WhatsApp<input name="telefone" placeholder="(11) 99999-9999" required /></label>{bookingError && <p className="form-error">{bookingError}</p>}<button className="button button-gold full-button" type="submit" disabled={bookingLoading}>{bookingLoading ? 'Salvando...' : 'Confirmar agendamento'} <ArrowUpRight size={18} /></button><small className="modal-note">Sem cadastro · confirmação pelo WhatsApp</small></form>}</div></div>}
     </div>
   )
 }
