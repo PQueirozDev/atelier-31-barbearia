@@ -40,14 +40,10 @@ function App() {
     const horario = String(form.get('horario') || '')
     if (!nome || !telefone || !data || !horario) { setBookingError('Preencha todos os campos para confirmar seu horário.'); return }
     setBookingLoading(true)
-    const { data: authData, error: authError } = await supabase.auth.signInAnonymously()
-    if (authError || !authData.user) { setBookingError('Ative o login anônimo em Supabase → Authentication → Providers → Anonymous.'); setBookingLoading(false); return }
-    const user = authData.user
-    await supabase.from('profiles').upsert({ id: user.id, nome, telefone, email: `anonimo-${user.id}@atelier31.local` })
     const { data: barber } = await supabase.from('barbers').select('id').eq('ativo', true).limit(1).single()
     const { data: service } = await supabase.from('services').select('id').eq('nome', selectedService).eq('ativo', true).single()
     if (!barber || !service) { setBookingError('Cadastre os serviços e barbeiros iniciais no Supabase antes de agendar.'); setBookingLoading(false); return }
-    const { error } = await supabase.from('appointments').insert({ cliente_id: user.id, barbeiro_id: barber.id, servico_id: service.id, data, horario, status: 'pendente' })
+    const { error } = await supabase.rpc('create_guest_appointment', { p_nome: nome, p_telefone: telefone, p_barbeiro_id: barber.id, p_servico_id: service.id, p_data: data, p_horario: horario })
     setBookingLoading(false)
     if (error) { setBookingError(error.code === '23505' ? 'Esse horário já foi reservado. Escolha outro.' : error.message); return }
     setSubmitted(true)
