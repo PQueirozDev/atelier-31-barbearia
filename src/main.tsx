@@ -49,7 +49,12 @@ function App() {
     const form = new FormData(event.currentTarget)
     setStaffLoading(true)
     const { data, error } = await supabase.auth.signInWithPassword({ email: String(form.get('email')), password: String(form.get('password')) })
-    if (error || !data.user) { setStaffError('E-mail ou senha inválidos.'); setStaffLoading(false); return }
+    if (error || !data.user) {
+      const message = error?.message.toLowerCase() || ''
+      setStaffError(message.includes('email not confirmed') ? 'Confirme o e-mail do funcionário no Supabase antes de entrar.' : 'Não foi possível entrar. Use o e-mail e a senha criados em Authentication → Users.')
+      setStaffLoading(false)
+      return
+    }
     const { data: profile } = await supabase.from('profiles').select('tipo_usuario').eq('id', data.user.id).single()
     if (profile?.tipo_usuario !== 'admin') { await supabase.auth.signOut(); setStaffError('Este acesso é exclusivo para a equipe da barbearia.'); setStaffLoading(false); return }
     await loadAppointments()
